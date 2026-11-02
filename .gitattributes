@@ -1,0 +1,2 @@
+papers.faiss filter=lfs diff=lfs merge=lfs -text
+papers.json filter=lfs diff=lfs merge=lfs -text
