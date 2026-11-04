@@ -58,14 +58,15 @@ def build_ui(search):
             return "Wpisz pytanie."
         return to_markdown(search(question, k))
 
-    def hints(question, since, model_name):
+    def hints(question, since, model_name, use_corpus):
         if not question.strip():
             yield "Wpisz pytanie."
             return
         yield "Model generuje zapytania (na CPU moze to potrwac do minuty)..."
         try:
-            # tytuly z lokalnego indeksu daja modelowi prawdziwe slownictwo dziedziny
-            titles = [p["title"] for _, p in search(question, 10)]
+            # uziemienie w korpusie ma sens tylko dla tematow z jego dziedziny
+            # (robotyka/automatyka/wizja); dla innych podsuwa nietrafne slownictwo
+            titles = [p["title"] for _, p in search(question, 10)] if use_corpus else None
             result = suggest_queries(question, titles=titles,
                                      model=(model_name or "").strip() or DEFAULT_MODEL)
             yield hints_markdown(result, since=int(since) if since else None)
@@ -76,7 +77,8 @@ def build_ui(search):
         gr.Markdown("# Wyszukiwarka publikacji naukowych\n"
                     "Zadaj pytanie (po polsku lub angielsku) - dostaniesz prace, "
                     "ktore na nie odpowiadaja. Mozesz tez poprosic o podpowiedz, "
-                    "jak szukac dalej w Google Scholar.")
+                    "jak szukac dalej w Google Scholar (takze dla twierdzen, "
+                    "ktore chcesz zweryfikowac, np. \"czy kawa skraca zycie\").")
         question = gr.Textbox(
             label="Pytanie",
             placeholder="np. jak sterowac ramieniem robota za pomoca jezyka naturalnego?")
@@ -88,12 +90,15 @@ def build_ui(search):
             since = gr.Number(value=2020, precision=0,
                               label="Szukaj prac od roku (0 = bez filtra)")
             model_name = gr.Textbox(value=DEFAULT_MODEL, label="Model Ollama")
+            use_corpus = gr.Checkbox(
+                value=False,
+                label="Uziemij slownictwo w moim korpusie (tylko dla tematow z robotyki/automatyki/wizji)")
         hints_out = gr.Markdown()
         output = gr.Markdown()
 
         btn.click(run, [question, k], output)
         question.submit(run, [question, k], output)
-        hint_btn.click(hints, [question, since, model_name], hints_out)
+        hint_btn.click(hints, [question, since, model_name, use_corpus], hints_out)
     return demo
 
 
